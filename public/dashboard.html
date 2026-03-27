@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZK-Settle | ZK-Verified Agent Labor Settlement</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.0/dist/ethers.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #00d4ff;
+            --secondary: #7c3aed;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .status-badge.connected { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .status-badge.disconnected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .status-badge.connected .status-dot { background: var(--success); }
+        .status-badge.disconnected .status-dot { background: var(--danger); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-secondary {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-title .icon { font-size: 1.25rem; }
+        .task-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .task-item:hover { border-color: var(--primary); }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .task-id {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--primary);
+            background: rgba(0, 212, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .task-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .task-status.pending { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .task-status.completed { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .task-status.verified { background: rgba(0, 212, 255, 0.2); color: var(--primary); }
+        .task-status.rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .task-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .task-meta span { display: flex; align-items: center; gap: 6px; }
+        .task-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .proof-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        .proof-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .proof-id {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--success);
+        }
+        .proof-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            word-break: break-all;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .form-select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        .form-select:focus { outline: none; border-color: var(--primary); }
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+        .toast.success { background: var(--success); color: white; }
+        .toast.error { background: var(--danger); color: white; }
+        .toast.warning { background: var(--warning); color: white; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .modal-close:hover { color: var(--text); }
+        .proof-file-input {
+            display: none;
+        }
+        .proof-file-label {
+            display: block;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px dashed var(--primary);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .proof-file-label:hover { background: rgba(0, 212, 255, 0.2); }
+        .proof-file-label .icon { font-size: 2rem; margin-bottom: 8px; }
+        .contract-address {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+        .tab-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+        .tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .tab:hover { background: rgba(255, 255, 255, 0.05); }
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .filter-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .filter-select {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        .filter-select:focus { outline: none; border-color: var(--primary); }
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+        .search-input:focus { outline: none; border-color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="icon">🔐</span> ZK-Settle
+            </div>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <div id="connectionStatus" class="status-badge disconnected">
+                    <span class="status-dot"></span>
+                    <span id="connectionText">Disconnected</span>
+                </div>
+                <button id="connectWallet" class="btn btn-primary">
+                    <span>🔗</span> Connect Wallet
+                </button>
+                <div id="walletAddress" style="display: none; font-family: 'Courier New', monospace; font-size: 0.875rem; color: var(--text-muted);"></div>
+            </div>
+        </header>
+
+        <div id="statsGrid" class="stats-grid" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTasks">0</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pendingTasks">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="verifiedTasks">0</div>
+                <div class="stat-label">Verified</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalValue">0</div>
+                <div class="stat-label">Total Value (ETH)</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="icon">📋</span>
+                        <span>Active Tasks</span>
+                    </div>
+                    <button id="refreshTasks" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.75rem;">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="tasksList">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>No active tasks found</p>
+                        <p class="form-hint">Connect wallet and post a task to get started</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="icon">🔐</span>
+                        <span>Submitted Proofs</span>
+                    </div>
+                    <button id="refreshProofs" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.75rem;">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="proofsList">
+                    <div class="empty-state">
+                        <div class="icon">🔒</div>
+                        <p>No proofs submitted</p>
+                        <p class="form-hint">Submit ZK proofs to verify task completion</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">➕</span>
+                    <span>Post New Task</span>
+                </div>
+            </div>
+            <form id="postTaskForm">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Task Description</label>
+                        <input type="text" id="taskDescription" class="form-input" placeholder="Describe the task to be completed" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reward (ETH)</label>
+                        <input type="number" id="taskReward" class="form-input" placeholder="0.01" step="0.001" min="0.001" required>
+                    </div>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">SLA Threshold (0-100)</label>
+                        <input type="number" id="slaThreshold" class="form-input" placeholder="80" min="0" max="100" required>
+                        <p class="form-hint">Minimum quality threshold for task completion</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Input Data Hash (SHA-256)</label>
+                        <input type="text" id="inputHash" class="form-input" placeholder="0x..." pattern="^0x[a-fA-F0-9]{64}$" required>
+                        <p class="form-hint">Hash of input data (input data remains private)</p>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <span>🚀</span> Post Task with ZK Verification
+                </button>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">📤</span>
+                    <span>Submit ZK Proof</span>
+                </div>
+            </div>
+            <form id="submitProofForm">
+                <div class="form-group">
+                    <label class="form-label">Task ID</label>
+                    <input type="text" id="proofTaskId" class="form-input" placeholder="0x..." pattern="^0x[a-fA-F0-9]{64}$" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Output Data Hash (SHA-256)</label>
+                    <input type="text" id="outputHash" class="form-input" placeholder="0x..." pattern="^0x[a-fA-F0-9]{64}$" required>
+                    <p class="form-hint">Hash of task output data</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ZK Proof File (.json)</label>
+                    <label class="proof-file-label">
+                        <div class="icon">📁</div>
+                        <div>Click to select proof file</div>
+                        <input type="file" id="proofFile" class="proof-file-input" accept=".json" required>
+                    </label>
+                    <p class="form-hint">Generated proof from circom circuit</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Public Signals (comma-separated)</label>
+                    <input type="text" id="publicSignals" class="form-input" placeholder="inputHash,outputHash,slaThreshold,timestamp" required>
+                    <p class="form-hint">Public values from proof verification</p>
+                </div>
+                <button type="submit" class="btn btn-success" style="width: 100%;">
+                    <span>✅</span> Submit Proof for Verification
+                </button>
+            </form>
+        </div>
+
+        <div class="contract-address">
+            Contract: <span id="contractAddress">0x0000000000000000000000000000000000000000</span>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        // Contract ABI - AgentLaborMarket.sol
+        const CONTRACT_ABI = [
+            "event TaskPosted(bytes32 indexed taskId, bytes32 indexed inputHash, uint256 reward, uint256 timestamp, uint256 slaThreshold)",
+            "event ProofSubmitted(bytes32 indexed taskId, bytes32 indexed proofId, address indexed agent, uint256 timestamp)",
+            "event TaskVerified(bytes32 indexed taskId, bytes32 indexed proofId, uint256 timestamp)",
+            "event FundsReleased(bytes32 indexed taskId, address indexed recipient, uint256 amount, uint256 timestamp)",
+            "event TaskRejected(bytes32 indexed taskId, bytes32 indexed proofId, uint256 timestamp)",
+            "function postTask(bytes32 _inputHash, uint256 _reward, uint256 _slaThreshold) external payable returns (bytes32 taskId)",
+            "function submitProof(bytes32 _taskId, bytes32 _outputHash, uint256[] calldata _publicSignals, uint256[8] calldata _proofA, uint256[2][8] calldata _proofB, uint256[8] calldata _proofC) external returns (bytes32 proofId)",
+            "function verifyProof(bytes32 _taskId, bytes32 _proofId) external returns (bool)",
+            "function getTask(bytes32 _taskId) external view returns (bytes32 inputHash, uint256 reward, uint256 timestamp, uint256 slaThreshold, uint8 status, address requester, address agent)",
+            "function getTaskStatus(bytes32 _taskId) external view returns (uint8)",
+            "function getProof(bytes32 _taskId, bytes32 _proofId) external view returns (bool submitted, bool verified, uint256 timestamp)",
+            "function getTaskProofs(bytes32 _taskId) external view returns (bytes32[] memory proofIds)",
+            "function getTaskCount() external view returns (uint256)",
+            "function getPendingTaskCount() external view returns (uint256)",
+            "function getVerifiedTaskCount() external view returns (uint256)"
+        ];
+
+        // Contract address - update with deployed address
+        const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+        // State
+        let provider = null;
+        let signer = null;
+        let contract = null;
+        let tasks = [];
+        let proofs = [];
+
+        // DOM Elements
+        const connectWalletBtn = document.getElementById('connectWallet');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText = document.getElementById('connectionText');
+        const walletAddress = document.getElementById('walletAddress');
+        const statsGrid = document.getElementById('statsGrid');
+        const tasksList = document.getElementById('tasksList');
+        const proofsList = document.getElementById('proofsList');
+        const postTaskForm = document.getElementById('postTaskForm');
+        const submitProofForm = document.getElementById('submitProofForm');
+        const contractAddressEl = document.getElementById('contractAddress');
+
+        // Initialize
+        async function init() {
+            contractAddressEl.textContent = CONTRACT_ADDRESS;
+            await loadTasks();
+            await loadProofs();
+            updateStats();
+        }
+
+        // Wallet Connection
+        connectWalletBtn.addEventListener('click', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    signer = await provider.getSigner();
+                    const address = await signer.getAddress();
+                    
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                    
+                    connectionStatus.className = 'status-badge connected';
+                    connectionText.textContent = 'Connected';
+                    walletAddress.style.display = 'block';
+                    walletAddress.textContent = shortenAddress(address);
+                    statsGrid.style.display = 'grid';
+                    
+                    showToast('Wallet connected successfully!', 'success');
+                    await loadTasks();
+                    await loadProofs();
+                    updateStats();
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    showToast('Failed to connect wallet: ' + error.message, 'error');
+                }
+            } else {
+                showToast('Please install MetaMask or compatible wallet', 'warning');
+            }
+        });
+
+        // Load Tasks
+        async function loadTasks() {
+            if (!contract) return;
+            
+            try {
+                const taskCount = await contract.getTaskCount();
+                tasks = [];
+                
+                for (let i = 0; i < taskCount; i++) {
+                    const taskId = await contract.getTaskId(i);
+                    const task = await contract.getTask(taskId);
+                    
+                    tasks.push({
+                        id: taskId,
+                        inputHash: task[0],
+                        reward: task[1],
+                        timestamp: task[2],
+                        slaThreshold: task[3],
+                        status: task[4],
+                        requester: task[5],
+                        agent: task[6]
+                    });
+                }
+                
+                renderTasks();
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                showToast('Failed to load tasks', 'error');
+            }
+        }
+
+        // Load Proofs
+        async function loadProofs() {
+            if (!contract) return;
+            
+            try {
+                proofs = [];
+                
+                for (const task of tasks) {
+                    const proofIds = await contract.getTaskProofs(task.id);
+                    
+                    for (const proofId of proofIds) {
+                        const proof = await contract.getProof(task.id, proofId);
+                        
+                        proofs.push({
+                            taskId: task.id,
+                            proofId: proofId,
+                            submitted: proof[0],
+                            verified: proof[1],
+                            timestamp: proof[2]
+                        });
+                    }
+                }
+                
+                renderProofs();
+            } catch (error) {
+                console.error('Error loading proofs:', error);
+                showToast('Failed to load proofs', 'error');
+            }
+        }
+
+        // Render Tasks
+        function renderTasks() {
+            if (tasks.length === 0) {
+                tasksList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>No active tasks found</p>
+                        <p class="form-hint">Connect wallet and post a task to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            tasksList.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <div class="task-header">
+                        <span class="task-id">${shortenHash(task.id)}</span>
+                        <span class="task-status ${getStatusClass(task.status)}">${getStatusText(task.status)}</span>
+                    </div>
+                    <div class="task-meta">
+                        <span>💰 ${formatEther(task.reward)} ETH</span>
+                        <span>📅 ${formatTimestamp(task.timestamp)}</span>
+                        <span>🎯 SLA: ${task.slaThreshold}%</span>
+                    </div>
+                    <div class="task-meta">
+                        <span>👤 ${shortenAddress(task.requester)}</span>
+                        <span>🤖 ${task.agent ? shortenAddress(task.agent) : 'Pending Agent'}</span>
+                    </div>
+                    <div class="task-actions">
+                        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.75rem;" onclick="viewTask('${task.id}')">
+                            👁️ View Details
+                        </button>
+                        ${task.status === 0 ? `<button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.75rem;" onclick="submitProofForTask('${task.id}')">
+                            🔐 Submit Proof
+                        </button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render Proofs
+        function renderProofs() {
+            if (proofs.length === 0) {
+                proofsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🔒</div>
+                        <p>No proofs submitted</p>
+                        <p class="form-hint">Submit ZK proofs to verify task completion</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            proofsList.innerHTML = proofs.map(proof => {
+                const task = tasks.find(t => t.id === proof.taskId);
+                return `
+                    <div class="proof-item">
+                        <div class="proof-header">
+                            <span class="proof-id">${shortenHash(proof.proofId)}</span>
+                            <span class="task-status ${proof.verified ? 'verified' : 'pending'}">
+                                ${proof.verified ? '✅ Verified' : '⏳ Pending'}
+                            </span>
+                        </div>
+                        <div class="task-meta">
+                            <span>📋 Task: ${shortenHash(proof.taskId)}</span>
+                            <span>📅 ${formatTimestamp(proof.timestamp)}</span>
+                        </div>
+                        ${proof.verified ? `
+                            <div style="color: var(--success); font-size: 0.875rem; margin-top: 8px;">
+                                ✓ ZK proof verified on-chain
+                            </div>
+                        ` : `
+                            <div style="color: var(--warning); font-size: 0.875rem; margin-top: 8px;">
+                                ⏳ Waiting for verification
+                            </div>

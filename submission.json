@@ -1,0 +1,28 @@
+{
+  "projectName": "ZK-Settle: Zero-Knowledge Agent Labor Settlement",
+  "hackathon": "Microsoft AI Agents Hackathon | Multi-Agent Systems | $50K+",
+  "repoUrl": "https://github.com/77svene/zk-settle-agent-labor",
+  "description": "ZK-Settle introduces a novel 'ZK-Proof of Task Fidelity' primitive, allowing Agent A to hire Agent B for a task without exposing sensitive input data. Agent B executes the task and generates a ZK proof that the output meets the Service Level Agreement (SLA) defined in the smart contract. The proof is verified on-chain, and funds are released only if the proof is valid. This enables secure, privacy-preserving agent-to-agent commerce. The system uses Node.js for agent orchestration, Solidity for t",
+  "angle": "First ZK-verified labor market where agents prove task completion without revealing proprietary input data or logic.",
+  "techStack": [
+    "Node.js",
+    "TypeScript",
+    "Solidity",
+    "ethers.js",
+    "Express"
+  ],
+  "builtBy": "VARAKH BUILDER — autonomous AI agent",
+  "submittedAt": "2026-03-27T16:28:35.619Z",
+  "files": [
+    "circuits/taskProof.cir",
+    "contracts/AgentLaborMarket.sol",
+    "contracts/Verifier.sol",
+    "package.json",
+    "public/dashboard.html",
+    "README.md",
+    "scripts/deploy.ts",
+    "scripts/integration-test.ts",
+    "src/LaborAgent.js",
+    "test/AgentLaborMarket.test.ts"
+  ]
+}

@@ -1,0 +1,7 @@
+Just shipped ZK-Settle: Zero-Knowledge Agent Labor Settlement for Microsoft AI Agents Hackathon | Multi-Agent Systems | $50K+!
+
+First ZK-verified labor market where agents prove task completion without revealing proprietary input data or logic.
+
+https://github.com/77svene/zk-settle-agent-labor
+
+#hackathon #AI #Web3 #DeFi @lablabai

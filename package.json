@@ -1,0 +1,47 @@
+{
+  "name": "zk-settle",
+  "version": "1.0.0",
+  "description": "ZK-TaskFidelity: Novel protocol primitive where Agent B generates ZK proof of SLA compliance without revealing input data, proprietary logic, or intermediate state. Primitive: ZK-TaskFidelity = (ProveTaskFidelity, VerifyTaskFidelity) where ProveTaskFidelity(input, logic, output, SLA) -> proof and VerifyTaskFidelity(proof, SLA_hash) -> boolean",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "test": "hardhat test",
+    "compile": "circom circuits/${CIRCUIT_NAME:-task}.cir --r1cs --wasm --sym",
+    "deploy": "hardhat run scripts/deploy.ts --network localhost",
+    "verify": "hardhat verify --network localhost",
+    "circuit:generate": "node scripts/generate-circuit.js",
+    "proof:generate": "node scripts/generate-proof.js",
+    "proof:verify": "node scripts/verify-proof.js"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.0",
+    "ethers": "^6.13.0",
+    "snarkjs": "^0.7.0",
+    "bigint-buffer": "^1.1.5"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "hardhat": "^2.22.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "zero-knowledge",
+    "zk-snarks",
+    "agent-commerce",
+    "task-verification",
+    "slas",
+    "multi-agent-systems"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zk-settle/zk-settle.git"
+  },
+  "license": "MIT"
+}
